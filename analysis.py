@@ -295,7 +295,8 @@ class FreshModel(object):
             self.load_data_initial()
 
         self.model()
-        self.results_by_genre()
+        genre_results_df = self.results_by_genre()
+        print(genre_results_df)
 
 
 if __name__ == '__main__':
