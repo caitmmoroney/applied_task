@@ -77,6 +77,7 @@ class FreshModel(object):
         self.rf_accuracy = None
         self.y_pred_svm = None
         self.y_pred_rf = None
+        self.X_test_genres = None
 
         # featurization pipelines
         text_pipe_rev = Pipeline(steps=[
@@ -185,6 +186,11 @@ class FreshModel(object):
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, random_state=self.random_state)
         print(f'The size of the training set is {self.X_train.shape[0]}.')
 
+        # save X_test genre information
+        self.X_test_genres = self.X_test[self.unique_genres]
+        with open('X_test_genres.pkl', 'wb') as f:
+            pickle.dump(self.X_test_genres, f)
+
         # fit & transform X_train dataframe into feature matrix for model training
         self.X_train = self.ct.fit_transform(self.X_train)
         print('Fit & transformed X_train.')
@@ -226,6 +232,9 @@ class FreshModel(object):
         with open('unique_genres.pkl', 'rb') as f:
             self.unique_genres = pickle.load(f)
         print(f'Number of genres: {len(self.unique_genres)}')
+
+        with open('X_test_genres.pkl', 'rb') as f:
+            self.X_test_genres = pickle.load(f)
 
     def model_train_test(self):
         # linear model
