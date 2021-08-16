@@ -5,11 +5,13 @@ from nltk import word_tokenize, pos_tag
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 
 # Load data
@@ -83,6 +85,7 @@ def convert_pos_wordnet(tag):
     if tag_abbr in tag_dict:
         return tag_dict[tag_abbr]
 
+
 def lemmatize_w_pos(word, lemmatizer):
     tag = pos_tag([word])[0][1]
     pos_bool = tag[0].upper() in 'JNVR'
@@ -93,6 +96,7 @@ def lemmatize_w_pos(word, lemmatizer):
         lemma = lemmatizer.lemmatize(word)
 
     return lemma
+
 
 class Lemmatizer(BaseEstimator, TransformerMixin):
     def __init__(self):
@@ -110,8 +114,9 @@ class Lemmatizer(BaseEstimator, TransformerMixin):
 
         return ' '.join(lemmas)
 
+
 # featurization pipelines
-text_pipe = Pipeline(steps = [
+text_pipe = Pipeline(steps=[
     # lemmatize text
     ('lemmatize', Lemmatizer()),
 
@@ -127,13 +132,41 @@ text_pipe = Pipeline(steps = [
 ])
 
 col_transforms = ColumnTransformer(
-    [('text', text_pipe, ['review', 'synopsis'])],
+    transformers=[('text', text_pipe, ['review', 'synopsis'])],
     remainder='passthrough'
 )
 
-
 # get train/test sets
-X = data_selected.drop(columns=['fresh']) # pd.DataFrame
-y = data_selected['fresh'] # pd.Series
+X = data_selected.drop(columns=['fresh'])  # pd.DataFrame
+y = data_selected['fresh']  # pd.Series
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=23)
+
+# fit & transform X_train dataframe into feature matrix for model training
+X_train = col_transforms.fit_transform(X_train)
+
+# transform X_test dataframe into feature matrix for model testing
+X_test = col_transforms.transform(X_test)
+
+# modeling
+
+# linear model
+model = SVC(random_state=23)
+svc_param_grid = {
+    'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+    'C': [0.1, 1, 10]
+}
+svc_estimator = GridSearchCV(model, svc_param_grid)
+svc_estimator.fit(X_train, y_train)
+y_pred = svc_estimator.predict(X_test)
+print(classification_report(y_test, y_pred))
+
+# ensemble decision tree model
+model = RandomForestClassifier(random_state=23)
+rf_param_grid = {
+    'n_estimators': [50, 100, 200]
+}
+rf_estimator = GridSearchCV(model, rf_param_grid)
+rf_estimator.fit(X_train, y_train)
+y_pred = rf_estimator.predict(X_test)
+print(classification_report(y_test, y_pred))
