@@ -102,11 +102,11 @@ class Lemmatizer(BaseEstimator, TransformerMixin):
     def __init__(self):
         self.lmtzr = WordNetLemmatizer()
 
-    def fit(self, X, y=None):
+    def fit(self, docs, y=None):
         return self
 
-    def transform(self, X, y=None):
-        return X.applymap(self._lemmatize)
+    def transform(self, docs, y=None):
+        return docs.apply(self._lemmatize)
 
     def _lemmatize(self, string):
         tokens = word_tokenize(string)
@@ -141,6 +141,7 @@ X = data_selected.drop(columns=['fresh'])  # pd.DataFrame
 y = data_selected['fresh']  # pd.Series
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=23)
+print(f'The size of the training set is {X_train.shape[0]}.')
 
 # fit & transform X_train dataframe into feature matrix for model training
 X_train = col_transforms.fit_transform(X_train)
