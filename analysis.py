@@ -16,10 +16,10 @@ reviews.rename(columns={'rating': 'review_rating'}, inplace=True)
 # join tables
 data = reviews.merge(movies, on='id') # inner join
 
-# select features: review, top_critic, synopsis, rating, genre, box_office, runtime, studio
+# select features: review, top_critic, synopsis, genre, box_office, runtime
 # target: fresh
 data_selected = data[[
-    'fresh', 'review', 'synopsis', 'top_critic', 'rating', 'genre', 'box_office', 'runtime', 'studio'
+    'fresh', 'review', 'synopsis', 'top_critic', 'genre', 'box_office', 'runtime'
 ]]
 
 # drop rows where features or target are Null
@@ -36,3 +36,14 @@ data_selected['runtime'] = data_selected['runtime'].apply(lambda x: int(re.sub('
 
 # change fresh to binary outcome
 data_selected['fresh'] = data_selected['fresh'].apply(lambda x: int(x == 'fresh'))
+
+# extract genres
+data_selected['genre'] = data_selected['genre'].apply(lambda x: x.split('|'))
+genres_df = pd.get_dummies(data_selected.genre.explode())
+genres_df = genres_df.reset_index()
+genres_df = genres_df.groupby('index').sum() # collapse rows
+data_selected = data_selected.join(genres_df) # rejoin with original df
+data_selected.drop(['genre'], inplace=True)
+
+# BOW
+
