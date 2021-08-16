@@ -33,3 +33,6 @@ data_selected['box_office'] = data_selected['box_office'].apply(lambda x: int(re
 
 # change runtime to numeric
 data_selected['runtime'] = data_selected['runtime'].apply(lambda x: int(re.sub('[^0-9]+', '', x)))
+
+# change fresh to binary outcome
+data_selected['fresh'] = data_selected['fresh'].apply(lambda x: int(x == 'fresh'))
