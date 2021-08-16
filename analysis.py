@@ -69,8 +69,9 @@ genres_df = genres_df.groupby('index').sum()  # collapse rows
 data_selected = data_selected.join(genres_df)  # rejoin with original df
 data_selected.drop(columns=['genre'], inplace=True)
 
+# text lemmatization
+lemmatizer = WordNetLemmatizer()
 
-# text featurization
 
 # to convert nltk_pos tags to wordnet-compatible PoS tags
 def convert_pos_wordnet(tag):
@@ -86,7 +87,7 @@ def convert_pos_wordnet(tag):
         return tag_dict[tag_abbr]
 
 
-def lemmatize_w_pos(word, lemmatizer):
+def lemmatize_w_pos(word):
     tag = pos_tag([word])[0][1]
     pos_bool = tag[0].upper() in 'JNVR'
 
@@ -98,28 +99,19 @@ def lemmatize_w_pos(word, lemmatizer):
     return lemma
 
 
-class Lemmatizer(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.lmtzr = WordNetLemmatizer()
+def get_lemmas(string):
+    tokens = word_tokenize(string)
+    lemmas = [lemmatize_w_pos(tok) for tok in tokens]
 
-    def fit(self, docs, y=None):
-        return self
+    return ' '.join(lemmas)
 
-    def transform(self, docs, y=None):
-        return docs.apply(self._lemmatize)
 
-    def _lemmatize(self, string):
-        tokens = word_tokenize(string)
-        lemmas = [lemmatize_w_pos(tok, self.lmtzr) for tok in tokens]
-
-        return ' '.join(lemmas)
+data_selected['review'] = data_selected['review'].apply(lambda x: get_lemmas(x))
+data_selected['synopsis'] = data_selected['synopsis'].apply(lambda x: get_lemmas(x))
 
 
 # featurization pipelines
 text_pipe = Pipeline(steps=[
-    # lemmatize text
-    ('lemmatize', Lemmatizer()),
-
     # BOW matrix
     ('vectorize', TfidfVectorizer(stop_words='english',
                                   ngram_range=(1, 2),
