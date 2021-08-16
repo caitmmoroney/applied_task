@@ -4,7 +4,6 @@ import re
 from nltk import word_tokenize, pos_tag
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -12,7 +11,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score, f1_score
 
 # Load data
 movies = pd.read_csv('movie_info.tsv', sep='\t')
@@ -64,6 +63,7 @@ data_selected['fresh'] = data_selected['fresh'].apply(lambda x: int(x == 'fresh'
 # extract genres
 data_selected['genre'] = data_selected['genre'].apply(lambda x: x.split('|'))
 genres_df = pd.get_dummies(data_selected.genre.explode())
+unique_genres = genres_df['genre'].unique()
 genres_df = genres_df.reset_index()
 genres_df = genres_df.groupby('index').sum()  # collapse rows
 data_selected = data_selected.join(genres_df)  # rejoin with original df
@@ -153,29 +153,69 @@ print(f'The size of the training set is {X_train.shape[0]}.')
 
 # fit & transform X_train dataframe into feature matrix for model training
 X_train = ct.fit_transform(X_train)
+print('Fit & transformed X_train.')
 
 # transform X_test dataframe into feature matrix for model testing
 X_test = ct.transform(X_test)
+print('Transformed X_test.')
 
 # modeling
 
 # linear model
-model = SVC(random_state=23)
-svc_param_grid = {
-    'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-    'C': [0.1, 1, 10]
-}
-svc_estimator = GridSearchCV(model, svc_param_grid, n_jobs=-1)
-svc_estimator.fit(X_train, y_train)
-y_pred = svc_estimator.predict(X_test)
-print(classification_report(y_test, y_pred))
+svc = SVC(random_state=23)
+# svc_param_grid = {
+#     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+#     'C': [0.1, 1, 10]
+# }
+# svc_estimator = GridSearchCV(svc, svc_param_grid, n_jobs=-1)
+# svc_estimator.fit(X_train, y_train)
+# y_pred_svm = svc_estimator.predict(X_test)
+svc.fit(X_train, y_train)
+print('Fit SVC model.')
+y_pred_svm = svc.predict(X_test)
+print(classification_report(y_test, y_pred_svm))
+svc_accuracy = accuracy_score(y_test, y_pred_svm)
 
 # ensemble decision tree model
-model = RandomForestClassifier(random_state=23)
-rf_param_grid = {
-    'n_estimators': [50, 100, 200]
-}
-rf_estimator = GridSearchCV(model, rf_param_grid, n_jobs=-1)
-rf_estimator.fit(X_train, y_train)
-y_pred = rf_estimator.predict(X_test)
-print(classification_report(y_test, y_pred))
+rf = RandomForestClassifier(random_state=23)
+# rf_param_grid = {
+#     'n_estimators': [50, 100, 200]
+# }
+# rf_estimator = GridSearchCV(rf, rf_param_grid, n_jobs=-1)
+# rf_estimator.fit(X_train, y_train)
+# y_pred_rf = rf_estimator.predict(X_test)
+rf.fit(X_train, y_train)
+print('Fit Random Forest model.')
+y_pred_rf = rf.predict(X_test)
+print(classification_report(y_test, y_pred_rf))
+rf_accuracy = accuracy_score(y_test, y_pred_rf)
+
+
+# Task 2: Interrogate the predictor
+results_df = pd.concat([X_test, y_test], axis=1)
+if svc_accuracy < rf_accuracy:
+    results_df['y_pred'] = y_pred_rf
+elif svc_accuracy >= rf_accuracy:
+    results_df['y_pred'] = y_pred_svm
+
+# genres:
+genre_accuracy = []
+genre_f1 = []
+genre_n = []
+for g in unique_genres:
+    filtered_results = results_df[results_df.genre == g]
+    n_obs = len(filtered_results)
+    acc = accuracy_score(filtered_results['fresh'], filtered_results['y_pred'])
+    f1 = f1_score(filtered_results['fresh'], filtered_results['y_pred'])
+    genre_n.append(n_obs)
+    genre_accuracy.append(acc)
+    genre_f1.append(f1)
+
+genre_results = pd.DataFrame({
+    'genre': unique_genres,
+    'count': genre_n,
+    'accuracy': genre_accuracy,
+    'f1': genre_f1
+})
+
+print(genre_results)
