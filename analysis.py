@@ -252,7 +252,7 @@ class FreshModel(object):
         with open('svc.pkl', 'wb') as f:
             pickle.dump(svc, f)
         self.y_pred_svm = svc.predict(self.X_test)
-        print(classification_report(self.y_test, self.y_pred_svm))
+        print(classification_report(self.y_test, self.y_pred_svm, zero_division=0))
         self.svc_accuracy = accuracy_score(self.y_test, self.y_pred_svm)
 
         # ensemble decision tree model
@@ -268,20 +268,20 @@ class FreshModel(object):
             pickle.dump(rf, f)
         print('Fit Random Forest model.')
         self.y_pred_rf = rf.predict(self.X_test)
-        print(classification_report(self.y_test, self.y_pred_rf))
+        print(classification_report(self.y_test, self.y_pred_rf, zero_division=0))
         self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
 
     def model_test(self):
         with open('svc.pkl', 'rb') as f:
             svc = pickle.load(f)
         self.y_pred_svm = svc.predict(self.X_test)
-        print(classification_report(self.y_test, self.y_pred_svm))
+        print(classification_report(self.y_test, self.y_pred_svm, zero_division=0))
         self.svc_accuracy = accuracy_score(self.y_test, self.y_pred_svm)
 
         with open('rf.pkl', 'rb') as f:
             rf = pickle.load(f)
         self.y_pred_rf = rf.predict(self.X_test)
-        print(classification_report(self.y_test, self.y_pred_rf))
+        print(classification_report(self.y_test, self.y_pred_rf, zero_division=0))
         self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
 
     def results_by_genre(self):
@@ -297,7 +297,7 @@ class FreshModel(object):
         genre_f1 = []
         genre_n = []
         for g in self.unique_genres:
-            filtered_results = results_df[results_df.genre == g]
+            filtered_results = results_df[results_df[g] == 1]
             n_obs = len(filtered_results)
             acc = accuracy_score(filtered_results['fresh'], filtered_results['y_pred'])
             f1 = f1_score(filtered_results['fresh'], filtered_results['y_pred'])
