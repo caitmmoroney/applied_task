@@ -276,10 +276,8 @@ class FreshModel(object):
         self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
 
     def results_by_genre(self):
-        print(type(self.X_test))
-        print(type(self.y_test))
         # Task 2: Interrogate the predictor
-        results_df = pd.concat([self.X_test, self.y_test], axis=1)
+        results_df = pd.concat([pd.DataFrame(self.X_test), self.y_test], axis=1)
         if self.svc_accuracy < self.rf_accuracy:
             results_df['y_pred'] = self.y_pred_rf
         elif self.svc_accuracy >= self.rf_accuracy:
