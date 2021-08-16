@@ -111,7 +111,7 @@ data_selected['synopsis'] = data_selected['synopsis'].apply(lambda x: get_lemmas
 
 
 # featurization pipelines
-text_pipe = Pipeline(steps=[
+text_pipe_rev = Pipeline(steps=[
     # BOW matrix
     ('vectorize', TfidfVectorizer(stop_words='english',
                                   ngram_range=(1, 2),
@@ -120,12 +120,28 @@ text_pipe = Pipeline(steps=[
                                   max_features=20000)),
 
     # topic modeling
-    ('topic_model', TruncatedSVD())
+    ('topic_model', TruncatedSVD(n_components=50, random_state=23))
 ])
 
-col_transforms = ColumnTransformer(
-    transformers=[('text', text_pipe, ['review', 'synopsis'])],
-    remainder='passthrough'
+text_pipe_syn = Pipeline(steps=[
+    # BOW matrix
+    ('vectorize', TfidfVectorizer(stop_words='english',
+                                  ngram_range=(1, 2),
+                                  min_df=5,
+                                  max_df=0.85,
+                                  max_features=20000)),
+
+    # topic modeling
+    ('topic_model', TruncatedSVD(n_components=50, random_state=23))
+])
+
+ct = ColumnTransformer(
+    transformers=[
+        ('text_review', text_pipe_rev, 'review'),
+        ('text_synopsis', text_pipe_syn, 'synopsis')
+    ],
+    remainder='passthrough',
+    n_jobs=-1
 )
 
 # get train/test sets
@@ -136,10 +152,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=23)
 print(f'The size of the training set is {X_train.shape[0]}.')
 
 # fit & transform X_train dataframe into feature matrix for model training
-X_train = col_transforms.fit_transform(X_train)
+X_train = ct.fit_transform(X_train)
 
 # transform X_test dataframe into feature matrix for model testing
-X_test = col_transforms.transform(X_test)
+X_test = ct.transform(X_test)
 
 # modeling
 
@@ -149,7 +165,7 @@ svc_param_grid = {
     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
     'C': [0.1, 1, 10]
 }
-svc_estimator = GridSearchCV(model, svc_param_grid)
+svc_estimator = GridSearchCV(model, svc_param_grid, n_jobs=-1)
 svc_estimator.fit(X_train, y_train)
 y_pred = svc_estimator.predict(X_test)
 print(classification_report(y_test, y_pred))
@@ -159,7 +175,7 @@ model = RandomForestClassifier(random_state=23)
 rf_param_grid = {
     'n_estimators': [50, 100, 200]
 }
-rf_estimator = GridSearchCV(model, rf_param_grid)
+rf_estimator = GridSearchCV(model, rf_param_grid, n_jobs=-1)
 rf_estimator.fit(X_train, y_train)
 y_pred = rf_estimator.predict(X_test)
 print(classification_report(y_test, y_pred))
