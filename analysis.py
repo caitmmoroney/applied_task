@@ -78,6 +78,9 @@ class FreshModel(object):
         self.y_pred_svm = None
         self.y_pred_rf = None
         self.X_test_genres = None
+        self.feature_names = None
+        self.svc = None
+        self.rf = None
 
         # featurization pipelines
         text_pipe_rev = Pipeline(steps=[
@@ -183,6 +186,14 @@ class FreshModel(object):
         X = data_selected.drop(columns=['fresh'])  # pd.DataFrame
         y = data_selected['fresh']  # pd.Series
 
+        self.feature_names = X.columns.to_list()
+        feature_names = []
+        for el in self.feature_names[:2]:
+            feature_names = feature_names + [f'{el}_topic{i+1}' for i in range(50)]
+        self.feature_names = feature_names + self.feature_names[2:]
+        with open('feature_names.pkl', 'wb') as f:
+            pickle.dump(self.feature_names, f)
+
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, random_state=self.random_state)
         print(f'The size of the training set is {self.X_train.shape[0]}.')
 
@@ -236,6 +247,9 @@ class FreshModel(object):
         with open('X_test_genres.pkl', 'rb') as f:
             self.X_test_genres = pickle.load(f)
 
+        with open('feature_names.pkl', 'rb') as f:
+            self.feature_names = pickle.load(f)
+
     def model_train_test(self):
         # linear model
         # svc = LinearSVC(penalty='l1', random_state=self.random_state)
@@ -248,6 +262,7 @@ class FreshModel(object):
         # svc_estimator.fit(self.X_train, self.y_train)
         # y_pred_svm = svc_estimator.predict(self.X_test)
         svc.fit(self.X_train, self.y_train)
+        self.svc = svc
         print('Fit SVC model.')
         with open('svc.pkl', 'wb') as f:
             pickle.dump(svc, f)
@@ -264,6 +279,7 @@ class FreshModel(object):
         # rf_estimator.fit(X_train, y_train)
         # y_pred_rf = rf_estimator.predict(X_test)
         rf.fit(self.X_train, self.y_train)
+        self.rf = rf
         with open('rf.pkl', 'wb') as f:
             pickle.dump(rf, f)
         print('Fit Random Forest model.')
@@ -274,12 +290,14 @@ class FreshModel(object):
     def model_test(self):
         with open('svc.pkl', 'rb') as f:
             svc = pickle.load(f)
+        self.svc = svc
         self.y_pred_svm = svc.predict(self.X_test)
         print(classification_report(self.y_test, self.y_pred_svm, zero_division=0))
         self.svc_accuracy = accuracy_score(self.y_test, self.y_pred_svm)
 
         with open('rf.pkl', 'rb') as f:
             rf = pickle.load(f)
+        self.rf = rf
         self.y_pred_rf = rf.predict(self.X_test)
         print(classification_report(self.y_test, self.y_pred_rf, zero_division=0))
         self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
@@ -314,6 +332,13 @@ class FreshModel(object):
 
         return genre_results
 
+    def get_feature_importance(self):
+        rf_importances = self.rf.feature_importances_
+        importance_df = pd.DataFrame({'var': self.feature_names, 'importance': rf_importances})
+        importance_df.sort_values(by='importance', ascending=False, inplace=True, ignore_index=True)
+
+        return importance_df
+
     def main(self):
         if all([exists(self.X_train_fname),
                 exists(self.X_test_fname),
@@ -327,10 +352,21 @@ class FreshModel(object):
             self.model_test()
         else:
             self.model_train_test()
+
         genre_results_df = self.results_by_genre()
         print(genre_results_df)
+
+        if self.svc_accuracy < self.rf_accuracy:
+            print(self.get_feature_importance())
 
 
 if __name__ == '__main__':
     analysis = FreshModel()
     analysis.main()
+    if analysis.rf_accuracy > analysis.svc_accuracy:
+        feature_importance_df = analysis.get_feature_importance()
+        feature_importance_df.to_csv('feature_importance.csv')
+
+        genre_results_df = analysis.results_by_genre()
+        genre_results_df.to_csv('genre_results.csv')
+
