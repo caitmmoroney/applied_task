@@ -9,7 +9,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, f1_score
 import pickle
@@ -209,6 +209,7 @@ class FreshModel(object):
     def load_data_intermediate(self):
         with open(self.X_train_fname, 'rb') as f:
             self.X_train = pickle.load(f)
+        print(f'Shape of X_train: {self.X_train.shape}')
 
         with open(self.X_test_fname, 'rb') as f:
             self.X_test = pickle.load(f)
@@ -224,9 +225,11 @@ class FreshModel(object):
 
         with open('unique_genres.pkl', 'rb') as f:
             self.unique_genres = pickle.load(f)
+        print(f'Number of genres: {len(self.unique_genres)}')
 
-    def model(self):
+    def model_train_test(self):
         # linear model
+        # svc = LinearSVC(penalty='l1', random_state=self.random_state)
         svc = SVC(random_state=self.random_state)
         # svc_param_grid = {
         #     'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
@@ -237,6 +240,8 @@ class FreshModel(object):
         # y_pred_svm = svc_estimator.predict(self.X_test)
         svc.fit(self.X_train, self.y_train)
         print('Fit SVC model.')
+        with open('svc.pkl', 'wb') as f:
+            pickle.dump(svc, f)
         self.y_pred_svm = svc.predict(self.X_test)
         print(classification_report(self.y_test, self.y_pred_svm))
         self.svc_accuracy = accuracy_score(self.y_test, self.y_pred_svm)
@@ -250,12 +255,29 @@ class FreshModel(object):
         # rf_estimator.fit(X_train, y_train)
         # y_pred_rf = rf_estimator.predict(X_test)
         rf.fit(self.X_train, self.y_train)
+        with open('rf.pkl', 'wb') as f:
+            pickle.dump(rf, f)
         print('Fit Random Forest model.')
         self.y_pred_rf = rf.predict(self.X_test)
         print(classification_report(self.y_test, self.y_pred_rf))
         self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
 
+    def model_test(self):
+        with open('svc.pkl', 'rb') as f:
+            svc = pickle.load(f)
+        self.y_pred_svm = svc.predict(self.X_test)
+        print(classification_report(self.y_test, self.y_pred_svm))
+        self.svc_accuracy = accuracy_score(self.y_test, self.y_pred_svm)
+
+        with open('rf.pkl', 'rb') as f:
+            rf = pickle.load(f)
+        self.y_pred_rf = rf.predict(self.X_test)
+        print(classification_report(self.y_test, self.y_pred_rf))
+        self.rf_accuracy = accuracy_score(self.y_test, self.y_pred_rf)
+
     def results_by_genre(self):
+        print(type(self.X_test))
+        print(type(self.y_test))
         # Task 2: Interrogate the predictor
         results_df = pd.concat([self.X_test, self.y_test], axis=1)
         if self.svc_accuracy < self.rf_accuracy:
@@ -294,7 +316,10 @@ class FreshModel(object):
         else:
             self.load_data_initial()
 
-        self.model()
+        if all([exists('svc.pkl'), exists('rf.pkl')]):
+            self.model_test()
+        else:
+            self.model_train_test()
         genre_results_df = self.results_by_genre()
         print(genre_results_df)
 
