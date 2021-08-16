@@ -160,10 +160,11 @@ class FreshModel(object):
 
         # extract genres
         data_selected['genre'] = data_selected['genre'].apply(lambda x: x.split('|'))
-        genres_df = pd.get_dummies(data_selected.genre.explode())
-        self.unique_genres = genres_df['genre'].unique()
+        exploded_df = data_selected.genre.explode()
+        self.unique_genres = exploded_df['genre'].unique()
         with open('unique_genres.pkl', 'wb') as f:
             pickle.dump(self.unique_genres, f)
+        genres_df = pd.get_dummies(exploded_df)
         genres_df = genres_df.reset_index()
         genres_df = genres_df.groupby('index').sum()  # collapse rows
         data_selected = data_selected.join(genres_df)  # rejoin with original df
