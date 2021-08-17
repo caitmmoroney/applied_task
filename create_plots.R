@@ -20,6 +20,18 @@ feature_importance %>%
   feature_importance
 
 feature_importance %>%
+  group_by(var_group) %>%
+  summarize(avg_importance = mean(importance)) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(var_group, avg_importance), y = avg_importance, fill = var_group)) +
+  geom_col() +
+  xlab("Variable Group") +
+  ylab("Average Importance") +
+  scale_fill_discrete(name = "Variable Group") +
+  coord_flip()
+ggsave("avgimportance_by_vargroup.png")
+
+feature_importance %>%
   ggplot(aes(x = importance, fill = data_source)) +
   geom_histogram(bins = 60, position = "identity", alpha = 0.6) +
   scale_fill_discrete(name = "Data Source") +
